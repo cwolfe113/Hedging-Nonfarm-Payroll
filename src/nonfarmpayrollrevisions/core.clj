@@ -5,51 +5,43 @@
             [nonfarmpayrollrevisions.fred :as f]
             [nonfarmpayrollrevisions.bls :as b]))
 
+(defn catch-december [month]
+  (if (= 0 month)
+    (+ 12 month)
+    month)
+  )
+
 (defn convert-month [number]
   (case number
-    0 :jan
-    1 :feb
-    2 :mar
-    3 :apr
-    4 :may
-    5 :jun
-    6 :jul
-    7 :aug
-    8 :sep
-    9 :oct
-    10 :nov
-    11 :dec
+    1 :jan
+    2 :feb
+    3 :mar
+    4 :apr
+    5 :may
+    6 :jun
+    7 :jul
+    8 :aug
+    9 :sep
+    10 :oct
+    11 :nov
+    12 :dec
     )
   )
 
-(defn labor-reports-diff [bls-labor-report fred-labor-report month]
-  (as-> ((fn merging [bls-labor-report fred-labor-report month]
-           (let [bls (second (first bls-labor-report))
-                 fred (first fred-labor-report)
-                 this-month (convert-month month)
-                 next-month (if (= 12 (inc month))
-                              0
-                              (inc month))]
-             (if (empty? (rest bls-labor-report))
-               (hash-map this-month [(- fred bls)])
-               (cons (hash-map this-month [(- fred bls)]) (merging (rest bls-labor-report) (rest fred-labor-report) next-month))
-               ))) bls-labor-report fred-labor-report month) %
+(defn labor-reports-diff [bls-labor-report fred-labor-report]
+  "
+  [[1 -13] [2 10]] [[1 23] [2 20]] => [[:jan 10] [:feb 10]]
+  "
+  (as-> (map #(hash-map (convert-month (first %1))
+                        [(- (second %2) (second %1))]) bls-labor-report fred-labor-report) %
         (butlast %)
         ))
 
-(defn labor-reports-merge [bls-labor-report fred-labor-report month]
-  (->> (labor-reports-diff bls-labor-report fred-labor-report month)
-      (apply merge-with concat ))
-  )
-
-(defn past-year-revisions [bls-labor-report fred-labor-report month]
-  (let [past-months (labor-reports-diff bls-labor-report fred-labor-report month)]
-    (-> (count past-months)
-        (- 3)
-        (drop past-months)
-        )
-    )
-  )
+(defn previous-year-revisions [diff-reports]
+  (-> (count diff-reports)
+      (- 3)
+      (drop diff-reports)
+      ))
 
 (defn abs-mean [coll]
   (let [sum (apply + (map #(Math/abs %) coll))
@@ -58,35 +50,27 @@
       (/ sum count)
       0)))
 
-(defn f-monthly-avg-revision [bls-labor-report fred-labor-report]
-  (as-> (labor-reports-merge bls-labor-report fred-labor-report 0) %
-        (map #(hash-map (first %) (float (abs-mean (second %)))) %)
+(defn f-monthly-avg-revision [diff-reports]
+  (as-> diff-reports %
         (apply merge-with concat %)
+        (map #(hash-map (first %) (float (abs-mean (second %)))) %)
+        (apply merge %)
         ))
 
-(defn rank-in-months [coll month]
-  (if (= month (ffirst coll))
-    (second (first coll))
-    (rank-in-months (rest coll) month)
-    )
-  )
-
 (defn f-this-month [bls-labor-report fred-labor-report]
-  (let [bls (second (last bls-labor-report))
-        next-month (as-> (dc/date) %
-                         (dc/month %)
-                         ;(inc %) ;want abs avg revisions for next month
-                         (convert-month %))
-        monthly-revision (f-monthly-avg-revision bls-labor-report fred-labor-report)
-        this-avg-revision (next-month monthly-revision)
+  (let [diff-reports (labor-reports-diff bls-labor-report fred-labor-report)
+        next-month-key (as-> (dc/date) %
+                             (dc/month %)
+                             (inc %) ;want abs avg revisions for next month
+                             (convert-month %))
+        monthly-revision (f-monthly-avg-revision diff-reports)
+        next-avg-revision (next-month-key monthly-revision)
         rank (as-> (sort-by val > monthly-revision) %
-                   (map first %)
-                   (interleave % (range))
-                   (partition 2 %)
-                   (rank-in-months % next-month)
+                   (map #((comp str first) %) %)
+                   (.indexOf % (str next-month-key))
                    )
-        past-quarter (past-year-revisions bls-labor-report fred-labor-report 0)]
-    [next-month :avg this-avg-revision :rank rank :past-quarter past-quarter]
+        previous-quarter (previous-year-revisions diff-reports)]
+    [next-month-key :avg next-avg-revision :rank rank :previous-quarter previous-quarter]
     ))
 
 (defn -main []

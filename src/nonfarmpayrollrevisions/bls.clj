@@ -1,7 +1,8 @@
 (ns nonfarmpayrollrevisions.bls
   (:require [pl.danieljanus.tagsoup :as ts]
             [net.cgrand.enlive-html :as html]
-            [date-clj :as dc]))
+            [date-clj :as dc]
+            [nonfarmpayrollrevisions.core :as main]))
 
 
 (def my-years
@@ -47,9 +48,14 @@
         ))
 
 (def f-bls-labor-report
+  "
+  [month change] st [1 -13] [2 10]
+  "
   (->> f-fridays
        (map #(try
-               [% (Integer/parseInt (get-bls-labor-report %))]
+               [(main/catch-december (dec (Integer/parseInt (subs % 0 2))))
+                (Integer/parseInt (get-bls-labor-report %))]
                (catch Exception e (println (str "caught exception: " %)))) )
        (remove nil? )))
+
 

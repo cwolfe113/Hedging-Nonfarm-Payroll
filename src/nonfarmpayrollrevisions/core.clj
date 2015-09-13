@@ -37,12 +37,6 @@
         (butlast %)
         ))
 
-(defn previous-year-revisions [diff-reports]
-  (-> (count diff-reports)
-      (- 3)
-      (drop diff-reports)
-      ))
-
 (defn abs-mean [coll]
   (let [sum (apply + (map #(Math/abs %) coll))
         count (count coll)]
@@ -69,7 +63,9 @@
                    (map #((comp str first) %) %)
                    (.indexOf % (str next-month-key))
                    )
-        previous-quarter (previous-year-revisions diff-reports)]
+        previous-quarter (-> (- (count diff-reports) 3)
+                             (drop diff-reports)
+                             )]
     [next-month-key :avg next-avg-revision :rank rank :previous-quarter previous-quarter]
     ))
 

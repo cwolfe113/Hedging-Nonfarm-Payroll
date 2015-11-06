@@ -1,9 +1,12 @@
 (ns nonfarmpayrollrevisions.bls
   (:require [pl.danieljanus.tagsoup :as ts]
             [net.cgrand.enlive-html :as html]
-            [date-clj :as dc]
-            [nonfarmpayrollrevisions.core :as main]))
+            [date-clj :as dc]))
 
+(defn catch-december [month]
+  (if (= 0 month)
+    (+ 12 month)
+    month))
 
 (def my-years
   (->> (dc/date)
@@ -31,8 +34,7 @@
                   "07032015" "07022015"
                   %)
                %)
-          (remove #(dc/after? (.parse my-date %) (dc/date)) %)
-        )))
+          (remove #(dc/after? (.parse my-date %) (dc/date)) %))))
 
 (def f-fridays
   (->> (map my-months my-years)
@@ -44,8 +46,7 @@
         (html/select % [:table#ces_table10 :span.datavalue])
         (map :content %)
         (nth % 3)
-        (first %)
-        ))
+        (first %)))
 
 (def f-bls-labor-report
   "
@@ -53,7 +54,7 @@
   "
   (->> f-fridays
        (map #(try
-               [(main/catch-december (dec (Integer/parseInt (subs % 0 2))))
+               [(catch-december (dec (Integer/parseInt (subs % 0 2))))
                 (Integer/parseInt (get-bls-labor-report %))]
                (catch Exception e (println (str "caught exception: " %)))) )
        (remove nil? )))

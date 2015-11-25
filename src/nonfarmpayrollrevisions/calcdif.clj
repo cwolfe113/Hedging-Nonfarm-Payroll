@@ -1,7 +1,7 @@
 (ns nonfarmpayrollrevisions.calcdif
   (:require [date-clj :as dc]))
 
-(defn convert-month [number]
+(defn num-to-month [number]
   (case number
     1 :jan
     2 :feb

@@ -7,3 +7,4 @@
   (println (c/f-this-month b/f-bls-labor-report f/f-fred-labor-report)))
 
 ;(-main)
+;http://www.bls.gov/web/empsit/cesnaicsrev.htm
